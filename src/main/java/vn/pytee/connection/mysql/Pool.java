@@ -1,4 +1,4 @@
-package vn.pytee.connection;
+package vn.pytee.connection.mysql;
 
 import java.sql.Connection;
 import java.sql.SQLException;
