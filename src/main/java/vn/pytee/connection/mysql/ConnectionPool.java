@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
-import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
+import com.mysql.cj.jdbc.MysqlDataSource;
 
 public class ConnectionPool {
 	private static List<Properties> CONFIGs;
@@ -59,7 +59,7 @@ public class ConnectionPool {
 			verify(properties);
 		}
 	}
-	
+
 	private static boolean verify(Properties properties) throws SQLException {
 		boolean passed = true;
 		MysqlDataSource dataSource = new MysqlDataSource();
@@ -96,9 +96,13 @@ public class ConnectionPool {
 		}
 
 		dataSource.setCharacterEncoding(properties.getProperty("mysql.character_encoding", "utf-8"));
-		dataSource.setAutoReconnectForConnectionPools(
-				Boolean.getBoolean(properties.getProperty("mysql.auto_reconnect", "true")));
-		dataSource.setUseUnicode(Boolean.getBoolean(properties.getProperty("mysql.unicode", "true")));
+		dataSource.setAutoReconnectForPools(Boolean.getBoolean(properties.getProperty("mysql.auto_reconnect", "true")));
+
+		boolean useUnicode = Boolean.getBoolean(properties.getProperty("mysql.unicode", "true"));
+		if (useUnicode) {
+			dataSource.setCharacterEncoding("utf-8");
+		}
+
 		dataSource.setCharacterSetResults(properties.getProperty("mysql.character_set_results", "utf-8"));
 
 		Connection con = dataSource.getConnection();
@@ -113,15 +117,15 @@ public class ConnectionPool {
 
 		return passed;
 	}
-	
+
 	public static Connection getConnection(String connectionName) {
 		if (!POOLs.containsKey(connectionName))
 			return null;
-		
+
 		Connection conn = POOLs.get(connectionName).borrowObject();
 		if (conn == null)
 			return null;
-		
+
 		BORROWSER_CONN.put(conn, connectionName);
 
 		return conn;
@@ -130,28 +134,28 @@ public class ConnectionPool {
 	public static void releaseConnection(Connection conn) {
 		if (!BORROWSER_CONN.containsKey(conn))
 			return;
-		
+
 		String connectionName = BORROWSER_CONN.get(conn);
 		if (!POOLs.containsKey(connectionName))
 			return;
-		
+
 		BORROWSER_CONN.remove(conn);
 		POOLs.get(connectionName).returnObject(conn);
 	}
-	
-	public static void releaseResource(PreparedStatement ps, ResultSet rs) {
-        try {
-            if (ps != null) {
-                ps.clearBatch();
-                ps.close();
-            }
-            if (rs != null) {
-                rs.close();
-            }
-        } catch (SQLException e) {
 
-        }
-    }
+	public static void releaseResource(PreparedStatement ps, ResultSet rs) {
+		try {
+			if (ps != null) {
+				ps.clearBatch();
+				ps.close();
+			}
+			if (rs != null) {
+				rs.close();
+			}
+		} catch (SQLException e) {
+
+		}
+	}
 
 	public static void clearPool() {
 		try {
@@ -187,11 +191,11 @@ public class ConnectionPool {
 			return filename.substring(index + 1);
 		}
 	}
-	
+
 	public static void main(String[] args) {
 		try {
 			ConnectionPool.initConnection();
-			
+
 			ConnectionPool.clearPool();
 		} catch (Exception e) {
 			e.printStackTrace();
